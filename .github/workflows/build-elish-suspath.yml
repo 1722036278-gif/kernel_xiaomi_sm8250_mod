@@ -24,7 +24,7 @@ jobs:
       KBUILD_BUILD_USER: builder
       KBUILD_BUILD_HOST: localhost
       KBUILD_BUILD_VERSION: '1'
-      KBUILD_BUILD_TIMESTAMP: '2024-05-07 07:59:22 UTC'
+      KBUILD_BUILD_TIMESTAMP: 'Tue May 7 07:59:22 UTC 2024'
 
     steps:
       - name: Checkout
