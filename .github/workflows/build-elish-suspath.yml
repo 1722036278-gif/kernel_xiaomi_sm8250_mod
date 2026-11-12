@@ -1,0 +1,72 @@
+name: build-elish-suspath
+
+on:
+  workflow_dispatch:
+    inputs:
+      device:
+        description: 'device codename (elish / enuma / dagu)'
+        required: true
+        default: 'elish'
+      sus_su:
+        description: 'also enable KSU_SUSFS_SUS_SU'
+        type: boolean
+        default: false
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 355
+    env:
+      SUS_SU_FLAG: ${{ inputs.sus_su }}
+      DEV: ${{ inputs.device }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+                      /opt/hostedtoolcache/CodeQL /usr/local/share/boost || true
+          df -h /
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq build-essential bc bison flex libssl-dev \
+            libelf-dev zip unzip wget curl git python3 cpio rsync ccache \
+            gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi
+          gcc --version | head -1
+          aarch64-linux-gnu-gcc --version | head -1
+
+      - name: Fetch proton-clang
+        run: |
+          git clone --depth=1 --branch 20210522 \
+            https://github.com/kdrag0n/proton-clang.git \
+            "$HOME/proton-clang/proton-clang-20210522"
+          "$HOME/proton-clang/proton-clang-20210522/bin/clang" --version | head -2
+
+      - name: Patch build.sh
+        run: python3 ci_patch.py
+
+      - name: Build MIUI kernel
+        run: |
+          set -o pipefail
+          bash build.sh "$DEV" ksu 2>&1 | tail -300
+
+      - name: Show output
+        if: always()
+        run: |
+          ls -la *.zip 2>/dev/null || echo "no zip produced"
+          df -h /
+
+      - name: Upload kernel zip
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kernel-${{ inputs.device }}-suspath
+          path: Kernel_MIUI_*.zip
+          if-no-files-found: warn
+          retention-days: 7
