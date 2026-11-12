@@ -115,12 +115,22 @@ report.append('Makefile SUBLEVEL = %s' % STOCK_SUBLEVEL)
 slv = 'scripts/setlocalversion'
 if not os.path.exists(slv):
     die('scripts/setlocalversion not found')
+# The upstream script prints $(localversion) itself: CONFIG_LOCALVERSION plus
+# the git describe suffix plus a '+' when the tree is dirty. We keep the first
+# part and drop the other two, otherwise the release string loses '-perf-...'.
 open(slv, 'w', encoding='utf-8', newline='\n').write(
     '#!/bin/sh\n'
-    '# [ci_patch] suppress git suffix and the dirty-tree "+" marker\n'
-    'exit 0\n')
+    '# [ci_patch] keep CONFIG_LOCALVERSION, drop git suffix and dirty marker\n'
+    'if test -e include/config/auto.conf; then\n'
+    '    . include/config/auto.conf\n'
+    'fi\n'
+    'if [ -z "$CONFIG_LOCALVERSION" ]; then\n'
+    '    CONFIG_LOCALVERSION="%s"\n'
+    'fi\n'
+    'printf "%%s" "$CONFIG_LOCALVERSION"\n'
+    'exit 0\n' % STOCK_LOCAL_VERSION)
 os.chmod(slv, 0o755)
-report.append('scripts/setlocalversion -> exit 0')
+report.append('scripts/setlocalversion -> echo CONFIG_LOCALVERSION only')
 
 print('\n'.join(report))
 print('target release string: 4.19.%s%s' % (STOCK_SUBLEVEL, STOCK_LOCAL_VERSION))
