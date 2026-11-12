@@ -132,6 +132,31 @@ open(slv, 'w', encoding='utf-8', newline='\n').write(
 os.chmod(slv, 0o755)
 report.append('scripts/setlocalversion -> echo CONFIG_LOCALVERSION only')
 
+# ------------------------------------------------------------ mkcompile_h ---
+# Linux bakes this into /proc/version:
+#   "Linux version " UTS_RELEASE " (" BY "@" HOST ") (" LINUX_COMPILER ") " UTS_VERSION
+# BY/HOST come from KBUILD_BUILD_USER / KBUILD_BUILD_HOST (already set in the
+# workflow). LINUX_COMPILER is the last line of `$CC -v`, which would spell out
+# "Proton clang version 13.0.0" -- a well known third-party kernel toolchain.
+# Replace it with a stock AOSP clang string so the banner looks like an
+# ordinary Android 13 build.
+mkh = 'scripts/mkcompile_h'
+if not os.path.exists(mkh):
+    die('scripts/mkcompile_h not found')
+h = open(mkh, encoding='utf-8').read()
+
+OLD_CC = '''  printf '#define LINUX_COMPILER "%s"\\n' "$CC_VERSION, $LD_VERSION"'''
+NEW_CC = '''  if [ -n "$KBUILD_FAKE_COMPILER" ]; then
+    printf '#define LINUX_COMPILER "%s"\\n' "$KBUILD_FAKE_COMPILER"
+  else
+    printf '#define LINUX_COMPILER "%s"\\n' "$CC_VERSION, $LD_VERSION"
+  fi'''
+if OLD_CC not in h:
+    die('LINUX_COMPILER printf line not found in mkcompile_h')
+h = h.replace(OLD_CC, NEW_CC)
+open(mkh, 'w', encoding='utf-8', newline='\n').write(h)
+report.append('mkcompile_h: LINUX_COMPILER override hook installed')
+
 print('\n'.join(report))
 print('target release string: 4.19.%s%s' % (STOCK_SUBLEVEL, STOCK_LOCAL_VERSION))
 print('PATCH OK')
