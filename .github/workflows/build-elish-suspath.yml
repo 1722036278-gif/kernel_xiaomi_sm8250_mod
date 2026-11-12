@@ -19,6 +19,12 @@ jobs:
     env:
       SUS_SU_FLAG: ${{ inputs.sus_su }}
       DEV: ${{ inputs.device }}
+      # Make /proc/version look like the stock Android 13 elish kernel:
+      # "#1 SMP PREEMPT Tue May 7 07:59:22 UTC 2024"
+      KBUILD_BUILD_USER: builder
+      KBUILD_BUILD_HOST: localhost
+      KBUILD_BUILD_VERSION: '1'
+      KBUILD_BUILD_TIMESTAMP: '2024-05-07 07:59:22 UTC'
 
     steps:
       - name: Checkout
